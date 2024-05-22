@@ -1,59 +1,52 @@
-package ppss;
-
-class NumberPrinter {
-    private int currentNumber = 1; // Starting number
-
-    // Method to print numbers, synchronized to ensure order
-    public synchronized void printNumbers(int threadId, int start, int end) {
-        for (int i = start; i <= end; i++) {
-            // Wait until it's the current thread's turn to print
-            while (currentNumber != i) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-            System.out.println("Thread " + threadId + " prints: " + i);
-            currentNumber++;
-            notifyAll(); // Notify all waiting threads
-        }
-    }
-}
-
-class NumberPrintingThread extends Thread {
-    private NumberPrinter numberPrinter;
-    private int threadId;
-    private int start;
-    private int end;
-
-    // Constructor to initialize thread details
-    public NumberPrintingThread(NumberPrinter numberPrinter, int threadId, int start, int end) {
-        this.numberPrinter = numberPrinter;
-        this.threadId = threadId;
-        this.start = start;
-        this.end = end;
-    }
-
-    // Override the run method to execute printing
-    @Override
-    public void run() {
-        numberPrinter.printNumbers(threadId, start, end);
-    }
-}
-
-public class MultiThreadNumberPrinter46 {
+public class SequentialNumberPrinter {
+    private static final int TOTAL_NUMBERS = 10;
+    private static int currentNumber = 1;
+    
     public static void main(String[] args) {
-        NumberPrinter numberPrinter = new NumberPrinter();
+        // Create a lock object for synchronization
+        final Object lock = new Object();
+        
+        // Create threads
+        Thread thread1 = new Thread(new NumberPrinter(lock, 1));
+        Thread thread2 = new Thread(new NumberPrinter(lock, 2));
+        Thread thread3 = new Thread(new NumberPrinter(lock, 3));
 
-        // Create threads, each responsible for a subset of numbers
-        NumberPrintingThread thread1 = new NumberPrintingThread(numberPrinter, 1, 1, 3);
-        NumberPrintingThread thread2 = new NumberPrintingThread(numberPrinter, 2, 4, 7);
-        NumberPrintingThread thread3 = new NumberPrintingThread(numberPrinter, 3, 8, 10);
-
-        // Start the threads
+        // Start threads
         thread1.start();
         thread2.start();
         thread3.start();
+    }
+    
+    static class NumberPrinter implements Runnable {
+        private final Object lock;
+        private final int threadId;
+        
+        public NumberPrinter(Object lock, int threadId) {
+            this.lock = lock;
+            this.threadId = threadId;
+        }
+        
+        @Override
+        public void run() {
+            while (true) {
+                synchronized (lock) {
+                    if (currentNumber > TOTAL_NUMBERS) {
+                        break;
+                    }
+                    
+                    if (currentNumber % 3 == threadId % 3) {
+                        System.out.println("Thread " + threadId + ": " + currentNumber);
+                        currentNumber++;
+                        lock.notifyAll();
+                    } else {
+                        try {
+                            lock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
     }
 }
